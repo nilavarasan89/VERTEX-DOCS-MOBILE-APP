@@ -32,24 +32,35 @@ export const MOCK_DOCUMENTS: DocumentItem[] = [
   },
   {
     id: 'doc-2',
-    title: 'Legal_Vendor_Agreement_TN.docx',
-    format: 'docx',
-    size: '1.8 MB',
+    title: 'Tamil_Project_Report.pdf',
+    format: 'pdf',
+    size: '2.4 MB',
     updatedAt: 'Yesterday',
     isTranslated: true,
-    sourceLanguage: 'English',
-    targetLanguage: 'Tamil',
+    sourceLanguage: 'Tamil',
+    targetLanguage: 'English',
     isFavorite: false,
   },
   {
     id: 'doc-3',
-    title: 'Technical_Architecture_Overview.pdf',
-    format: 'pdf',
-    size: '8.5 MB',
+    title: 'Internship_Application.docx',
+    format: 'docx',
+    size: '850 KB',
     updatedAt: '3 days ago',
     isTranslated: false,
     sourceLanguage: 'English',
     isFavorite: true,
+  },
+  {
+    id: 'doc-4',
+    title: 'Legal_Vendor_Contract_TN.pdf',
+    format: 'pdf',
+    size: '5.1 MB',
+    updatedAt: 'May 12, 2026',
+    isTranslated: true,
+    sourceLanguage: 'English',
+    targetLanguage: 'Tamil',
+    isFavorite: false,
   },
 ];
 
@@ -57,7 +68,7 @@ export const MOCK_QUICK_ACTIONS: QuickActionItem[] = [
   {
     id: 'action-files',
     title: 'Files',
-    description: 'Browse all documents & folders',
+    description: 'Browse & organize all cloud docs',
     icon: 'folder-outline',
     route: 'files',
   },
@@ -72,7 +83,7 @@ export const MOCK_QUICK_ACTIONS: QuickActionItem[] = [
   {
     id: 'action-lang',
     title: 'Language Bridge',
-    description: 'Tamil ⇄ English document translation',
+    description: 'Tamil ⇄ English document AI',
     icon: 'swap-horizontal-outline',
     badge: 'AI',
     route: 'language_bridge',
@@ -85,3 +96,20 @@ export const MOCK_DASHBOARD_STATS = {
   favoriteDocs: 3,
   storageUsed: '1.2 GB of 15 GB',
 };
+
+export const MOCK_NOTIFICATIONS = [
+  {
+    id: 'notif-1',
+    title: 'Translation Complete',
+    description: 'Tamil_Project_Report.pdf was translated to English.',
+    time: '10m ago',
+    unread: true,
+  },
+  {
+    id: 'notif-2',
+    title: 'New Shared Document',
+    description: 'Annual_Financial_Audit_2026.pdf was shared by Finance Team.',
+    time: '2h ago',
+    unread: true,
+  },
+];
