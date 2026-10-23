@@ -10,6 +10,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.jmvertex.vertexdocs",
       "adaptiveIcon": {
         "backgroundColor": "#0B1533",
         "foregroundImage": "./assets/android-icon-foreground.png",
