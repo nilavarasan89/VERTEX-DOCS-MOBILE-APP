@@ -73,13 +73,12 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
   };
 
   const handleRegister = () => {
-    if (!validate()) return;
-
+    const userMail = email.trim() || (fullName.trim() ? `${fullName.trim().replace(/\s+/g, '.').toLowerCase()}@company.com` : 'user@vertexdocs.app');
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      onRegisterSuccess(email.trim());
-    }, 1200);
+      onRegisterSuccess(userMail);
+    }, 400);
   };
 
   return (
@@ -110,7 +109,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
             <View style={styles.form}>
               <CustomInput
                 label="Full Name"
-                placeholder="e.g. Alex Morgan"
+                placeholder="Enter your full name"
                 value={fullName}
                 onChangeText={(val) => {
                   setFullName(val);
@@ -185,6 +184,17 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
                 rightIcon="checkmark-circle-outline"
                 style={styles.submitBtn}
               />
+
+              <TouchableOpacity
+                style={styles.directConverterButton}
+                onPress={() => onRegisterSuccess(email.trim() || 'user@vertexdocs.app')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="repeat-outline" size={16} color={COLORS.primary} style={{ marginRight: 6 }} />
+                <Text style={styles.directConverterButtonText}>
+                  Direct Access: Open Document Converter
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.loginRow}>
@@ -249,7 +259,23 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  directConverterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
     marginBottom: SPACING.lg,
+  },
+  directConverterButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
   loginRow: {
     flexDirection: 'row',

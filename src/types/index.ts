@@ -1,10 +1,30 @@
 /**
  * Vertex Docs Mobile - Type Definitions
+ * Company: JM Vertex Technologies
  */
 
-export type ScreenType = 'login' | 'register' | 'forgot_password' | 'dashboard';
+export * from './converter';
+export * from './translator';
+export * from './history';
 
-export type DashboardTab = 'home' | 'files' | 'pdf_studio' | 'language_bridge' | 'profile';
+export type ScreenType =
+  | 'login'
+  | 'register'
+  | 'forgot_password'
+  | 'dashboard'
+  | 'converter'
+  | 'translator'
+  | 'history';
+
+export type DashboardTab =
+  | 'home'
+  | 'files'
+  | 'converter'
+  | 'translator'
+  | 'history'
+  | 'pdf_studio'
+  | 'language_bridge'
+  | 'profile';
 
 export interface UserProfile {
   name: string;
@@ -15,7 +35,7 @@ export interface UserProfile {
   initials: string;
 }
 
-export type DocumentFormat = 'pdf' | 'docx' | 'txt' | 'scan';
+export type DocumentFormat = 'pdf' | 'docx' | 'pptx' | 'txt' | 'jpg' | 'png' | 'scan';
 
 export interface DocumentItem {
   id: string;
@@ -36,4 +56,5 @@ export interface QuickActionItem {
   icon: string;
   badge?: string;
   route: DashboardTab;
+  screenTarget?: ScreenType;
 }

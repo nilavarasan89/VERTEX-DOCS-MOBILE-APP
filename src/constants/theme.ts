@@ -9,6 +9,7 @@ export const COLORS = {
   navy: '#0B1533',          // Dark navy
   background: '#F8FAFC',    // Soft off-white background
   surface: '#FFFFFF',       // Card / modal surface
+  card: '#FFFFFF',          // Card background surface
   teal: '#0EA5A4',          // Teal accent
   textPrimary: '#172033',   // Main text
   textSecondary: '#64748B', // Secondary text

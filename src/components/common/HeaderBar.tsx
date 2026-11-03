@@ -11,6 +11,8 @@ import { COLORS, SPACING, RADIUS } from '../../constants/theme';
 interface HeaderBarProps {
   title: string;
   subtitle?: string;
+  showBack?: boolean;
+  onBack?: () => void;
   onBackPress?: () => void;
   rightAction?: {
     icon: keyof typeof Ionicons.glyphMap;
@@ -21,16 +23,21 @@ interface HeaderBarProps {
 export const HeaderBar: React.FC<HeaderBarProps> = ({
   title,
   subtitle,
+  showBack,
+  onBack,
   onBackPress,
   rightAction,
 }) => {
+  const handleBack = onBack || onBackPress;
+  const isBackVisible = showBack !== undefined ? showBack : Boolean(handleBack);
+
   return (
     <View style={styles.container}>
       <View style={styles.leftRow}>
-        {onBackPress && (
+        {isBackVisible && handleBack && (
           <TouchableOpacity
             style={styles.backButton}
-            onPress={onBackPress}
+            onPress={handleBack}
             activeOpacity={0.7}
             accessibilityLabel="Go back"
             accessibilityRole="button"

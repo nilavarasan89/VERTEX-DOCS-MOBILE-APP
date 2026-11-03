@@ -18,7 +18,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, SHADOWS, TYPOGRAPHY } from '../constants/theme';
-import { DEMO_CREDENTIALS } from '../constants/mockData';
 import { BrandLogo } from '../components/common/BrandLogo';
 import { CustomInput } from '../components/common/CustomInput';
 import { CustomButton } from '../components/common/CustomButton';
@@ -67,21 +66,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     if (formBanner) setFormBanner(null);
   };
 
-  // Quick 1-tap demo credentials autofill for reviewer
-  const handleFillDemoCredentials = () => {
-    setEmail(DEMO_CREDENTIALS.email);
-    setPassword(DEMO_CREDENTIALS.password);
-    setEmailError('');
-    setPasswordError('');
-    setFormBanner({
-      type: 'info',
-      message: 'Demo credentials pre-filled for JM Vertex reviewer.',
-    });
-  };
-
-  // Submission handler with comprehensive validation
+  // Submission handler with clean email sign-in
   const handleSignIn = () => {
-    let isValid = true;
     setEmailError('');
     setPasswordError('');
     setFormBanner(null);
@@ -90,51 +76,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
     // Validate email
     if (!trimmedEmail) {
-      setEmailError('Please enter your email address');
-      isValid = false;
+      setEmailError('Please enter your email ID to sign in');
+      return;
     } else if (!validateEmail(trimmedEmail)) {
-      setEmailError('Please enter a valid email address (e.g., name@domain.com)');
-      isValid = false;
-    }
-
-    // Validate password
-    if (!password) {
-      setPasswordError('Please enter your password');
-      isValid = false;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-      isValid = false;
-    }
-
-    if (!isValid) {
+      setEmailError('Please enter a valid email address (e.g. yourname@gmail.com)');
       return;
     }
 
-    // Begin Simulated Authentication
     setIsLoading(true);
-
-    // Mock API delay (1.2 seconds for realistic SaaS feel)
     setTimeout(() => {
       setIsLoading(false);
-
-      // Check if credentials match demo or are generally well-formed for demo purposes
       onLoginSuccess(trimmedEmail);
-    }, 1200);
+    }, 400);
   };
 
-  // Google Sign-In Prototype Notice
+  // Google Sign-In Option
   const handleGoogleSignInPress = () => {
-    Alert.alert(
-      'Google Sign-In Prototype',
-      'Google authentication is a visual prototype in this internship demo build. Please use the direct Sign In button or 1-tap demo credentials.',
-      [
-        {
-          text: 'Fill Demo Account',
-          onPress: handleFillDemoCredentials,
-        },
-        { text: 'Got It', style: 'cancel' },
-      ]
-    );
+    onLoginSuccess(email.trim() || 'google.user@vertexdocs.app');
   };
 
   return (
@@ -148,20 +106,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Top Demo Bar / Quick Fill Pill */}
-          <View style={styles.demoBarWrapper}>
-            <TouchableOpacity
-              style={styles.demoPill}
-              onPress={handleFillDemoCredentials}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Fill demo credentials"
-            >
-              <Ionicons name="flash-outline" size={13} color={COLORS.primary} />
-              <Text style={styles.demoPillText}>Auto-Fill Demo Account</Text>
-            </TouchableOpacity>
-          </View>
-
           {/* A. Brand Header */}
           <View style={styles.brandHeaderContainer}>
             <BrandLogo size="standard" showSubtitle={true} showCompanyTag={true} />
@@ -171,9 +115,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           <View style={styles.cardContainer}>
             {/* B. Welcome Section */}
             <View style={styles.welcomeSection}>
-              <Text style={styles.welcomeTitle}>Welcome Back!</Text>
+              <Text style={styles.welcomeTitle}>Sign In with Your Email</Text>
               <Text style={styles.welcomeSubtitle}>
-                Sign in to access your documents and continue where you left off.
+                Enter your email ID to convert, translate, and manage documents independently.
               </Text>
             </View>
 
@@ -212,8 +156,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             <View style={styles.formContainer}>
               {/* Email Address Field */}
               <CustomInput
-                label="Email Address"
-                placeholder="name@company.com"
+                label="Email ID"
+                placeholder="yourname@gmail.com"
                 value={email}
                 onChangeText={handleEmailChange}
                 keyboardType="email-address"
@@ -223,10 +167,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 error={emailError}
               />
 
-              {/* Password Field with Show/Hide Toggle */}
+              {/* Password Field with Show/Hide Toggle (Optional) */}
               <CustomInput
-                label="Password"
-                placeholder="Enter your password"
+                label="Password (Optional)"
+                placeholder="Optional password"
                 value={password}
                 onChangeText={handlePasswordChange}
                 isPassword={true}
@@ -256,13 +200,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               {/* Sign In Primary Button */}
               <View style={styles.signInButtonContainer}>
                 <CustomButton
-                  title="Sign In"
+                  title="Sign In with Email"
                   onPress={handleSignIn}
                   variant="primary"
                   loading={isLoading}
                   rightIcon="arrow-forward"
                 />
               </View>
+
+              {/* Direct Access Quick Button */}
+              <TouchableOpacity
+                style={styles.directConverterButton}
+                onPress={() => onLoginSuccess(email.trim() || 'user@vertexdocs.app')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="repeat-outline" size={16} color={COLORS.primary} style={{ marginRight: 6 }} />
+                <Text style={styles.directConverterButtonText}>
+                  Direct Access: Open Document Converter
+                </Text>
+              </TouchableOpacity>
 
               {/* D. Alternative Login (OR Divider + Google Prototype) */}
               <View style={styles.dividerContainer}>
@@ -324,27 +280,6 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.xl,
     justifyContent: 'center',
-  },
-  demoBarWrapper: {
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  demoPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primarySoft,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  demoPillText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: COLORS.primary,
-    marginLeft: 5,
-    letterSpacing: 0.1,
   },
   brandHeaderContainer: {
     alignItems: 'center',
@@ -419,7 +354,23 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   signInButtonContainer: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.sm,
+  },
+  directConverterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.md,
+  },
+  directConverterButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
   dividerContainer: {
     flexDirection: 'row',

@@ -66,11 +66,30 @@ export const MOCK_DOCUMENTS: DocumentItem[] = [
 
 export const MOCK_QUICK_ACTIONS: QuickActionItem[] = [
   {
-    id: 'action-files',
-    title: 'Files',
-    description: 'Browse & organize all cloud docs',
-    icon: 'folder-outline',
-    route: 'files',
+    id: 'action-converter',
+    title: 'Document Converter',
+    description: 'Convert PDF, Word, PPT & Images in 11+ formats',
+    icon: 'repeat-outline',
+    badge: 'Module 1',
+    route: 'converter',
+    screenTarget: 'converter',
+  },
+  {
+    id: 'action-translator',
+    title: 'Document Translator',
+    description: 'Tamil ⇄ English & multilingual neural translation',
+    icon: 'language-outline',
+    badge: 'Module 2',
+    route: 'translator',
+    screenTarget: 'translator',
+  },
+  {
+    id: 'action-history',
+    title: 'Conversion History',
+    description: 'Track, view, and share all converted documents',
+    icon: 'time-outline',
+    route: 'history',
+    screenTarget: 'history',
   },
   {
     id: 'action-pdf',
@@ -79,14 +98,6 @@ export const MOCK_QUICK_ACTIONS: QuickActionItem[] = [
     icon: 'document-text-outline',
     badge: 'Pro',
     route: 'pdf_studio',
-  },
-  {
-    id: 'action-lang',
-    title: 'Language Bridge',
-    description: 'Tamil ⇄ English document AI',
-    icon: 'swap-horizontal-outline',
-    badge: 'AI',
-    route: 'language_bridge',
   },
 ];
 

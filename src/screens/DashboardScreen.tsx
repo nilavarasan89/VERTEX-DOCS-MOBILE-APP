@@ -27,11 +27,13 @@ import {
   MOCK_NOTIFICATIONS,
 } from '../constants/mockData';
 import { DashboardTab, DocumentItem, ScreenType } from '../types';
+import { converterService } from '../services/converterService';
 
 interface DashboardScreenProps {
   userEmail?: string;
   onLogout: () => void;
   onNavigateScreen?: (screen: ScreenType) => void;
+  onNavigateToTranslator?: (documentTitle: string, rawText?: string, format?: string) => void;
 }
 
 type FileFilter = 'all' | 'pdf' | 'docx' | 'translated' | 'favorites';
@@ -40,14 +42,35 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   userEmail,
   onLogout,
   onNavigateScreen,
+  onNavigateToTranslator,
 }) => {
   const insets = useSafeAreaInsets();
 
   // Navigation & Data State
   const [activeTab, setActiveTab] = useState<DashboardTab>('home');
-  const [documents, setDocuments] = useState<DocumentItem[]>(MOCK_DOCUMENTS);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [activeFilter, setActiveFilter] = useState<FileFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Dynamically compute user profile details from signed-in email
+  const derivedUserName = useMemo(() => {
+    if (!userEmail) return 'Vertex User';
+    const namePart = userEmail.split('@')[0];
+    return namePart
+      .split(/[._-]/)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }, [userEmail]);
+
+  const derivedInitials = useMemo(() => {
+    if (!userEmail) return 'VU';
+    const namePart = userEmail.split('@')[0];
+    const parts = namePart.split(/[._-]/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return namePart.slice(0, 2).toUpperCase();
+  }, [userEmail]);
 
   // Modals
   const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null);
@@ -86,36 +109,46 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
     });
   }, [documents, activeFilter, searchQuery]);
 
-  // Simulate file upload
-  const handleSimulatedUpload = (docTitle: string, format: 'pdf' | 'docx') => {
-    setUploadProgress(10);
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev === null) return 10;
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setUploadProgress(null);
-            setShowUploadModal(false);
-            const newDoc: DocumentItem = {
-              id: `doc-${Date.now()}`,
-              title: docTitle,
-              format,
-              size: '1.5 MB',
-              updatedAt: 'Just now',
-              isTranslated: format === 'pdf',
-              sourceLanguage: 'Tamil',
-              targetLanguage: 'English',
-              isFavorite: false,
-            };
-            setDocuments((prevDocs) => [newDoc, ...prevDocs]);
-            Alert.alert('Upload Successful', `"${docTitle}" has been added to Vertex Docs.`);
-          }, 300);
-          return 100;
-        }
-        return prev + 30;
-      });
-    }, 200);
+  // Pick document directly from user's device storage
+  const handlePickUserFile = async () => {
+    try {
+      const file = await converterService.pickDocument();
+      if (file) {
+        const newDoc: DocumentItem = {
+          id: `doc-${Date.now()}`,
+          title: file.name,
+          format: (file.format.toLowerCase() === 'docx' ? 'docx' : 'pdf') as 'pdf' | 'docx',
+          size: file.sizeFormatted,
+          updatedAt: 'Just now',
+          isTranslated: false,
+          isFavorite: false,
+        };
+        setDocuments((prevDocs) => [newDoc, ...prevDocs]);
+        Alert.alert(
+          'Document Loaded',
+          `"${file.name}" (${file.sizeFormatted}) selected from device storage.\n\nChoose an action:`,
+          [
+            { text: 'Keep on Dashboard', style: 'cancel' },
+            {
+              text: 'Convert Document',
+              onPress: () => onNavigateScreen && onNavigateScreen('converter'),
+            },
+            {
+              text: 'Translate Document',
+              onPress: () => {
+                if (onNavigateToTranslator) {
+                  onNavigateToTranslator(file.name, undefined, file.format);
+                } else if (onNavigateScreen) {
+                  onNavigateScreen('translator');
+                }
+              },
+            },
+          ]
+        );
+      }
+    } catch (e) {
+      Alert.alert('File Picker', 'Unable to access device document storage.');
+    }
   };
 
   const handleConfirmLogout = () => {
@@ -360,14 +393,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
       <View style={styles.profileCard}>
         <View style={styles.profileHeaderRow}>
           <View style={styles.profileAvatar}>
-            <Text style={styles.profileAvatarText}>{MOCK_USER.initials}</Text>
+            <Text style={styles.profileAvatarText}>{derivedInitials}</Text>
           </View>
           <View style={{ flex: 1, marginLeft: SPACING.md }}>
-            <Text style={styles.profileName}>{MOCK_USER.name}</Text>
-            <Text style={styles.profileEmail}>{userEmail || MOCK_USER.email}</Text>
+            <Text style={styles.profileName}>{derivedUserName}</Text>
+            <Text style={styles.profileEmail}>{userEmail || 'user@vertexdocs.app'}</Text>
             <View style={styles.profileCompanyBadge}>
               <View style={styles.companyDot} />
-              <Text style={styles.profileCompanyText}>{MOCK_USER.company}</Text>
+              <Text style={styles.profileCompanyText}>Vertex Workspace</Text>
             </View>
           </View>
         </View>
@@ -376,72 +409,51 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         <View style={styles.storageSection}>
           <View style={styles.storageHeader}>
             <Text style={styles.storageLabel}>Cloud Storage</Text>
-            <Text style={styles.storageAmount}>1.2 GB of 15 GB (8%)</Text>
+            <Text style={styles.storageAmount}>0.2 GB of 15 GB (1%)</Text>
           </View>
           <View style={styles.storageTrack}>
-            <View style={[styles.storageBar, { width: '8%' }]} />
+            <View style={[styles.storageBar, { width: '1%' }]} />
           </View>
         </View>
 
         {/* Settings Menu Options */}
         <View style={styles.settingsGroup}>
-          <TouchableOpacity style={styles.settingsRow} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.settingsRow}
+            activeOpacity={0.7}
+            onPress={() => onNavigateScreen && onNavigateScreen('translator')}
+          >
             <View style={styles.settingsIconBox}>
               <Ionicons name="language-outline" size={18} color={COLORS.navy} />
             </View>
-            <Text style={styles.settingsLabel}>Tamil & English Translation Models</Text>
+            <Text style={styles.settingsLabel}>Tamil & Multilingual Translation Models</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.muted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingsRow} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.settingsRow}
+            activeOpacity={0.7}
+            onPress={() => onNavigateScreen && onNavigateScreen('converter')}
+          >
             <View style={styles.settingsIconBox}>
-              <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.navy} />
+              <Ionicons name="repeat-outline" size={18} color={COLORS.navy} />
             </View>
-            <Text style={styles.settingsLabel}>Security & Biometric Sign-In</Text>
+            <Text style={styles.settingsLabel}>Document Converter Options</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.muted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingsRow} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.settingsRow}
+            activeOpacity={0.7}
+            onPress={() => onNavigateScreen && onNavigateScreen('history')}
+          >
             <View style={styles.settingsIconBox}>
-              <Ionicons name="cloud-offline-outline" size={18} color={COLORS.navy} />
+              <Ionicons name="time-outline" size={18} color={COLORS.navy} />
             </View>
-            <Text style={styles.settingsLabel}>Offline Sync & Local Cache</Text>
+            <Text style={styles.settingsLabel}>Audit & Processing History</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.muted} />
           </TouchableOpacity>
         </View>
-
-        {/* Reviewer / Evaluator Demo Navigation Section (Cleanly Placed Here) */}
-        {onNavigateScreen && (
-          <View style={styles.reviewerSection}>
-            <Text style={styles.reviewerSectionTitle}>Internship Demo Screen Navigation</Text>
-            <Text style={styles.reviewerSectionSub}>
-              Switch views without overlaying floating buttons on the production UI.
-            </Text>
-            <View style={styles.reviewerBtnRow}>
-              <TouchableOpacity
-                style={styles.reviewerBtn}
-                onPress={() => onNavigateScreen('login')}
-              >
-                <Ionicons name="log-in-outline" size={14} color={COLORS.primary} />
-                <Text style={styles.reviewerBtnText}>Login Screen</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.reviewerBtn}
-                onPress={() => onNavigateScreen('forgot_password')}
-              >
-                <Ionicons name="key-outline" size={14} color={COLORS.primary} />
-                <Text style={styles.reviewerBtnText}>Password Reset</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.reviewerBtn}
-                onPress={() => onNavigateScreen('register')}
-              >
-                <Ionicons name="person-add-outline" size={14} color={COLORS.primary} />
-                <Text style={styles.reviewerBtnText}>Register Form</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
 
         {/* Sign Out Button */}
         <TouchableOpacity
@@ -538,45 +550,40 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         <View style={styles.uploadButtonsRow}>
           <TouchableOpacity
             style={styles.primaryUploadBtn}
-            onPress={() => setShowUploadModal(true)}
+            onPress={handlePickUserFile}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
+            <Ionicons name="folder-open" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
             <Text style={styles.primaryUploadBtnText}>Choose a file</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.secondaryScanBtn}
-            onPress={() => {
-              Alert.alert('Scan Document', 'Camera scanner simulation ready. Choose a file or scan sample.', [
-                { text: 'Scan Sample Document', onPress: () => handleSimulatedUpload('Scanned_Tamil_Notice.pdf', 'pdf') },
-                { text: 'Cancel', style: 'cancel' },
-              ]);
-            }}
+            onPress={() => onNavigateScreen && onNavigateScreen('converter')}
             activeOpacity={0.7}
           >
-            <Ionicons name="camera-outline" size={16} color={COLORS.navy} style={{ marginRight: 4 }} />
-            <Text style={styles.secondaryScanBtnText}>Scan document</Text>
+            <Ionicons name="repeat-outline" size={16} color={COLORS.navy} style={{ marginRight: 4 }} />
+            <Text style={styles.secondaryScanBtnText}>Document Converter</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* 6. Document Statistics Section (Compact, Elegant Row) */}
+      {/* 6. Document Statistics Section */}
       <View style={styles.statsRowCard}>
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{MOCK_DASHBOARD_STATS.totalDocs}</Text>
+          <Text style={styles.statValue}>{documents.length}</Text>
           <Text style={styles.statLabel}>Total files</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={[styles.statValue, { color: COLORS.teal }]}>
-            {MOCK_DASHBOARD_STATS.translatedDocs}
+            {documents.filter((d) => d.isTranslated).length}
           </Text>
           <Text style={styles.statLabel}>Translated</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{MOCK_DASHBOARD_STATS.favoriteDocs}</Text>
+          <Text style={styles.statValue}>{documents.filter((d) => d.isFavorite).length}</Text>
           <Text style={styles.statLabel}>Favorites</Text>
         </View>
       </View>
@@ -591,7 +598,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           <TouchableOpacity
             key={action.id}
             style={styles.quickActionCard}
-            onPress={() => setActiveTab(action.route)}
+            onPress={() => {
+              if (action.screenTarget && onNavigateScreen) {
+                onNavigateScreen(action.screenTarget);
+              } else {
+                setActiveTab(action.route);
+              }
+            }}
             activeOpacity={0.7}
           >
             <View style={styles.quickActionHeader}>
@@ -707,7 +720,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             <View style={styles.brandMiniDot} />
             <Text style={styles.brandCompanyText}>JM VERTEX TECHNOLOGIES</Text>
           </View>
-          <Text style={styles.greetingTitle}>Hello, Alex</Text>
+          <Text style={styles.greetingTitle}>Hello, {derivedUserName}</Text>
           <Text style={styles.greetingSub}>Manage your documents in one place.</Text>
         </View>
 
@@ -730,7 +743,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             activeOpacity={0.7}
             accessibilityLabel="Open Profile"
           >
-            <Text style={styles.headerAvatarText}>{MOCK_USER.initials}</Text>
+            <Text style={styles.headerAvatarText}>{derivedInitials}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -747,7 +760,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         {activeTab === 'profile' && renderProfileTab()}
       </ScrollView>
 
-      {/* 9. Redesigned Fixed 5-Item Bottom Navigation Bar */}
+      {/* 9. Fixed 5-Item Bottom Navigation Bar */}
       <View style={[styles.bottomNavContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <TouchableOpacity
           style={styles.navTab}
@@ -771,52 +784,41 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
         <TouchableOpacity
           style={styles.navTab}
-          onPress={() => setActiveTab('files')}
+          onPress={() => {
+            if (onNavigateScreen) {
+              onNavigateScreen('converter');
+            } else {
+              setActiveTab('home');
+            }
+          }}
           activeOpacity={0.7}
         >
-          <View style={[styles.navIconBox, activeTab === 'files' && styles.navIconBoxActive]}>
+          <View style={styles.navIconBox}>
             <Ionicons
-              name={activeTab === 'files' ? 'folder' : 'folder-outline'}
+              name="repeat-outline"
               size={20}
-              color={activeTab === 'files' ? COLORS.primary : COLORS.iconColor}
+              color={COLORS.iconColor}
             />
           </View>
-          <Text
-            style={[styles.navLabel, activeTab === 'files' && styles.navLabelActive]}
-            numberOfLines={1}
-          >
-            Files
+          <Text style={styles.navLabel} numberOfLines={1}>
+            Convert
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.navTab}
-          onPress={() => setActiveTab('pdf_studio')}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.navIconBox, activeTab === 'pdf_studio' && styles.navIconBoxActive]}>
-            <Ionicons
-              name={activeTab === 'pdf_studio' ? 'document-text' : 'document-text-outline'}
-              size={20}
-              color={activeTab === 'pdf_studio' ? COLORS.primary : COLORS.iconColor}
-            />
-          </View>
-          <Text
-            style={[styles.navLabel, activeTab === 'pdf_studio' && styles.navLabelActive]}
-            numberOfLines={1}
-          >
-            PDF Studio
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navTab}
-          onPress={() => setActiveTab('language_bridge')}
+          onPress={() => {
+            if (onNavigateScreen) {
+              onNavigateScreen('translator');
+            } else {
+              setActiveTab('language_bridge');
+            }
+          }}
           activeOpacity={0.7}
         >
           <View style={[styles.navIconBox, activeTab === 'language_bridge' && styles.navIconBoxActive]}>
             <Ionicons
-              name={activeTab === 'language_bridge' ? 'swap-horizontal' : 'swap-horizontal-outline'}
+              name="language-outline"
               size={20}
               color={activeTab === 'language_bridge' ? COLORS.primary : COLORS.iconColor}
             />
@@ -826,6 +828,29 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             numberOfLines={1}
           >
             Translate
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navTab}
+          onPress={() => {
+            if (onNavigateScreen) {
+              onNavigateScreen('history');
+            } else {
+              setActiveTab('home');
+            }
+          }}
+          activeOpacity={0.7}
+        >
+          <View style={styles.navIconBox}>
+            <Ionicons
+              name="time-outline"
+              size={20}
+              color={COLORS.iconColor}
+            />
+          </View>
+          <Text style={styles.navLabel} numberOfLines={1}>
+            History
           </Text>
         </TouchableOpacity>
 
@@ -908,22 +933,43 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                     style={styles.sheetActionItem}
                     onPress={() => {
                       setSelectedDoc(null);
-                      setActiveTab('pdf_studio');
+                      if (onNavigateScreen) {
+                        onNavigateScreen('converter');
+                      }
                     }}
                   >
-                    <Ionicons name="eye-outline" size={20} color={COLORS.primary} />
-                    <Text style={styles.sheetActionText}>Open in PDF Studio</Text>
+                    <Ionicons name="repeat-outline" size={20} color={COLORS.primary} />
+                    <Text style={styles.sheetActionText}>Convert Document (PDF, Word, PPTX, Images)</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.sheetActionItem}
+                    onPress={() => {
+                      const docTitleToTranslate = selectedDoc.title;
+                      const docFormatToTranslate = selectedDoc.format;
+                      setSelectedDoc(null);
+                      if (onNavigateToTranslator) {
+                        onNavigateToTranslator(docTitleToTranslate, undefined, docFormatToTranslate);
+                      } else if (onNavigateScreen) {
+                        onNavigateScreen('translator');
+                      } else {
+                        setActiveTab('language_bridge');
+                      }
+                    }}
+                  >
+                    <Ionicons name="language-outline" size={20} color={COLORS.teal} />
+                    <Text style={styles.sheetActionText}>Translate Document (Tamil ⇄ English & Multilingual)</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={styles.sheetActionItem}
                     onPress={() => {
                       setSelectedDoc(null);
-                      setActiveTab('language_bridge');
+                      setActiveTab('pdf_studio');
                     }}
                   >
-                    <Ionicons name="swap-horizontal-outline" size={20} color={COLORS.teal} />
-                    <Text style={styles.sheetActionText}>Translate Document (Tamil ⇄ English)</Text>
+                    <Ionicons name="eye-outline" size={20} color={COLORS.primary} />
+                    <Text style={styles.sheetActionText}>Open in PDF Studio</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -982,62 +1028,52 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             <View style={styles.sheetHandle} />
             <Text style={styles.uploadModalHeading}>Choose Document</Text>
             <Text style={styles.uploadModalSub}>
-              Select a sample file to test the document upload flow:
+              Select a file from your device or open a processing workflow:
             </Text>
 
-            {uploadProgress !== null ? (
-              <View style={styles.uploadProgressBox}>
-                <Text style={styles.uploadProgressTitle}>Uploading to Vertex Cloud...</Text>
-                <View style={styles.progressBarTrack}>
-                  <View style={[styles.progressBarFill, { width: `${uploadProgress}%` }]} />
-                </View>
-                <Text style={styles.uploadProgressPct}>{uploadProgress}% complete</Text>
-              </View>
-            ) : (
-              <View style={styles.sampleUploadList}>
+            <View>
+              <View style={styles.uploadActionButtonsBox}>
                 <TouchableOpacity
-                  style={styles.sampleUploadItem}
-                  onPress={() => handleSimulatedUpload('Tamil_Legal_Deed_2026.pdf', 'pdf')}
+                  style={styles.workflowUploadBtn}
+                  onPress={() => {
+                    setShowUploadModal(false);
+                    handlePickUserFile();
+                  }}
+                  activeOpacity={0.8}
                 >
-                  <View style={[styles.sampleIconBox, styles.pdfBadge]}>
-                    <Ionicons name="document-text" size={18} color="#DC2626" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sampleDocTitle}>Tamil_Legal_Deed_2026.pdf</Text>
-                    <Text style={styles.sampleDocSub}>Tamil Document • 1.8 MB</Text>
-                  </View>
-                  <Ionicons name="cloud-upload-outline" size={18} color={COLORS.primary} />
+                  <Ionicons name="folder-open" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.workflowUploadBtnText}>Browse Device Storage</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.sampleUploadItem}
-                  onPress={() => handleSimulatedUpload('JM_Employment_Contract.docx', 'docx')}
+                  style={styles.workflowUploadBtnSec}
+                  onPress={() => {
+                    setShowUploadModal(false);
+                    if (onNavigateScreen) {
+                      onNavigateScreen('converter');
+                    }
+                  }}
+                  activeOpacity={0.8}
                 >
-                  <View style={[styles.sampleIconBox, styles.docxBadge]}>
-                    <Ionicons name="document" size={18} color={COLORS.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sampleDocTitle}>JM_Employment_Contract.docx</Text>
-                    <Text style={styles.sampleDocSub}>Word Document • 920 KB</Text>
-                  </View>
-                  <Ionicons name="cloud-upload-outline" size={18} color={COLORS.primary} />
+                  <Ionicons name="repeat-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+                  <Text style={styles.workflowUploadBtnSecText}>Open Document Converter</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.sampleUploadItem}
-                  onPress={() => handleSimulatedUpload('Engineering_API_Spec.pdf', 'pdf')}
+                  style={styles.workflowUploadBtnSec}
+                  onPress={() => {
+                    setShowUploadModal(false);
+                    if (onNavigateScreen) {
+                      onNavigateScreen('translator');
+                    }
+                  }}
+                  activeOpacity={0.8}
                 >
-                  <View style={[styles.sampleIconBox, styles.pdfBadge]}>
-                    <Ionicons name="document-text" size={18} color="#DC2626" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sampleDocTitle}>Engineering_API_Spec.pdf</Text>
-                    <Text style={styles.sampleDocSub}>Technical PDF • 3.1 MB</Text>
-                  </View>
-                  <Ionicons name="cloud-upload-outline" size={18} color={COLORS.primary} />
+                  <Ionicons name="language-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+                  <Text style={styles.workflowUploadBtnSecText}>Open Document Translator</Text>
                 </TouchableOpacity>
               </View>
-            )}
+            </View>
 
             <TouchableOpacity
               style={styles.sheetCloseBtn}
@@ -1307,14 +1343,16 @@ const styles = StyleSheet.create({
   },
   quickActionsGrid: {
     flexDirection: 'row',
-    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 10,
     marginBottom: SPACING.lg,
   },
   quickActionCard: {
-    flex: 1,
+    width: '48.5%',
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
-    padding: 10,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     ...SHADOWS.subtle,
@@ -2026,46 +2064,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.navy,
   },
-  reviewerSection: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    marginBottom: SPACING.lg,
-  },
-  reviewerSectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  reviewerSectionSub: {
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-    marginBottom: 8,
-  },
-  reviewerBtnRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  reviewerBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  reviewerBtnText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: COLORS.primary,
-    marginLeft: 4,
-  },
   profileLogoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2183,6 +2181,46 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textSecondary,
     marginBottom: SPACING.md,
+  },
+  uploadActionButtonsBox: {
+    gap: 8,
+    marginBottom: SPACING.md,
+  },
+  workflowUploadBtn: {
+    backgroundColor: COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    ...SHADOWS.subtle,
+  },
+  workflowUploadBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  workflowUploadBtnSec: {
+    backgroundColor: '#EFF6FF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  workflowUploadBtnSecText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  sampleUploadSectionHeader: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    textTransform: 'uppercase',
+    marginBottom: 8,
   },
   sampleUploadList: {
     gap: 8,
