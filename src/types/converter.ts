@@ -3,9 +3,9 @@
  * Company: JM Vertex Technologies
  */
 
-export type SourceFormat = 'pdf' | 'docx' | 'pptx' | 'jpg' | 'png' | 'txt';
+export type SourceFormat = 'pdf' | 'docx' | 'pptx' | 'jpg' | 'png' | 'txt' | 'xlsx';
 
-export type TargetFormat = 'pdf' | 'docx' | 'pptx' | 'txt' | 'jpg' | 'png';
+export type TargetFormat = 'pdf' | 'docx' | 'pptx' | 'txt' | 'jpg' | 'png' | 'csv' | 'webp';
 
 export type ConversionStatus =
   | 'idle'

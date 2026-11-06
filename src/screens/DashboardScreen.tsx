@@ -245,17 +245,29 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
         {/* Studio Tools Bar */}
         <View style={styles.studioToolbar}>
-          <TouchableOpacity style={styles.studioToolBtn} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.studioToolBtn}
+            onPress={() => onNavigateScreen && onNavigateScreen('converter')}
+            activeOpacity={0.7}
+          >
             <Ionicons name="pencil-outline" size={17} color={COLORS.navy} />
-            <Text style={styles.studioToolLabel}>Annotate</Text>
+            <Text style={styles.studioToolLabel}>Edit / Pages</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.studioToolBtn} activeOpacity={0.7}>
-            <Ionicons name="color-wand-outline" size={17} color={COLORS.navy} />
-            <Text style={styles.studioToolLabel}>Highlight</Text>
+          <TouchableOpacity
+            style={styles.studioToolBtn}
+            onPress={() => onNavigateScreen && onNavigateScreen('converter')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="layers-outline" size={17} color={COLORS.navy} />
+            <Text style={styles.studioToolLabel}>Merge</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.studioToolBtn} activeOpacity={0.7}>
-            <Ionicons name="create-outline" size={17} color={COLORS.navy} />
-            <Text style={styles.studioToolLabel}>Sign</Text>
+          <TouchableOpacity
+            style={styles.studioToolBtn}
+            onPress={() => onNavigateScreen && onNavigateScreen('converter')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="resize-outline" size={17} color={COLORS.navy} />
+            <Text style={styles.studioToolLabel}>Compress</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.studioToolBtn} activeOpacity={0.7}>
             <Ionicons name="search-outline" size={17} color={COLORS.navy} />
@@ -377,11 +389,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
         <TouchableOpacity
           style={styles.translateActionBtn}
-          onPress={() => Alert.alert('Translation Complete', 'The document was translated and saved to your Tamil Vault.')}
+          onPress={() =>
+            onNavigateToTranslator &&
+            onNavigateToTranslator(
+              'Tamil_Project_Report.pdf',
+              'இத்திட்டம் தமிழ் ஆவணங்களை துல்லியமாக மொழிபெயர்க்க உருவாக்கப்பட்டுள்ளது.\n\nThis system has been engineered to translate Tamil documents with contextual fidelity.',
+              'pdf'
+            )
+          }
           activeOpacity={0.8}
         >
           <Ionicons name="flash" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-          <Text style={styles.translateActionBtnText}>Translate Full Document (14 Pages)</Text>
+          <Text style={styles.translateActionBtnText}>Launch Document Translator</Text>
         </TouchableOpacity>
       </View>
     </View>

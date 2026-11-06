@@ -1,10 +1,13 @@
 /**
  * Vertex Docs Mobile - Document Converter Service
  * Company: JM Vertex Technologies
+ * 
+ * Orchestrates genuine document conversions between PDF, DOCX, TXT,
+ * XLSX/CSV, and Images using verified on-device engines and services.
  */
 
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import {
   SelectedFile,
@@ -23,6 +26,10 @@ import {
 import { historyService } from './historyService';
 import { apiClient } from './apiClient';
 import { API_CONFIG } from './apiConfig';
+import { docxService } from './docxService';
+import { pdfService } from './pdfService';
+import { xlsxService } from './xlsxService';
+import { imageService } from './imageService';
 
 class ConverterService {
   /**
@@ -35,9 +42,12 @@ class ConverterService {
           'application/pdf',
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           'application/msword',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
           'application/vnd.openxmlformats-officedocument.presentationml.presentation',
           'application/vnd.ms-powerpoint',
           'text/plain',
+          'text/csv',
           'image/jpeg',
           'image/png',
           '*/*',
@@ -51,7 +61,7 @@ class ConverterService {
 
       const asset = result.assets[0];
       const format = getFormatFromFileName(asset.name);
-      const size = asset.size ?? 1024 * 500;
+      const size = asset.size ?? 1024 * 50;
 
       return {
         uri: asset.uri,
@@ -64,8 +74,47 @@ class ConverterService {
         isMock: false,
       };
     } catch (error) {
-      console.warn('DocumentPicker failed, falling back to manual selection:', error);
+      console.warn('DocumentPicker error:', error);
       return null;
+    }
+  }
+
+  /**
+   * Pick multiple documents (for Merge workflow)
+   */
+  public async pickMultipleDocuments(): Promise<SelectedFile[]> {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          'application/pdf',
+          'image/jpeg',
+          'image/png',
+        ],
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return [];
+      }
+
+      return result.assets.map((asset) => {
+        const format = getFormatFromFileName(asset.name);
+        const size = asset.size ?? 1024 * 50;
+        return {
+          uri: asset.uri,
+          name: asset.name,
+          size,
+          sizeFormatted: formatBytes(size),
+          format,
+          mimeType: asset.mimeType ?? 'application/octet-stream',
+          lastModified: asset.lastModified,
+          isMock: false,
+        };
+      });
+    } catch (error) {
+      console.warn('Multiple DocumentPicker error:', error);
+      return [];
     }
   }
 
@@ -97,40 +146,46 @@ class ConverterService {
   }
 
   /**
-   * Reads or extracts clean document text suitable for translation
+   * Extracts clean document text suitable for translation
    */
   public async extractTextForTranslation(file: SelectedFile): Promise<string> {
-    if (file.format === 'txt' && file.uri && !file.isMock) {
-      try {
-        if (FileSystem.readAsStringAsync) {
-          const content = await FileSystem.readAsStringAsync(file.uri);
-          if (content && content.trim().length > 0) {
-            return content;
-          }
-        }
-      } catch (e) {
-        console.warn('Could not read local text file:', e);
-      }
+    if (!file.uri) {
+      throw new Error('File URI is required for text extraction.');
     }
 
-    // Realistic extractable representation preserving document structure
-    return (
-      `EMPLOYMENT AGREEMENT & GOVERNANCE POLICY\n\n` +
-      `Original File: ${file.name}\n` +
-      `This Agreement is entered into by and between JM Vertex Technologies and the Employee. ` +
-      `The purpose of this agreement is to define professional responsibilities, confidentiality guidelines, and compensation terms.\n\n` +
-      `1. Responsibilities and Obligations:\n` +
-      `The Employee agrees to perform duties diligently and comply with all security and document governance standards.\n\n` +
-      `2. Confidentiality & Non-Disclosure:\n` +
-      `The Employee agrees to maintain strict confidentiality regarding all company trade secrets, source codes, and proprietary document methodologies.\n\n` +
-      `3. Terms and Conditions:\n` +
-      `Both parties agree to submit to the official jurisdiction and management review process established by JM Vertex Technologies.\n\n` +
-      `4. In witness whereof, the parties have executed this Agreement on the date written below.`
-    );
+    try {
+      if (file.format === 'txt') {
+        return await FileSystem.readAsStringAsync(file.uri, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+      }
+
+      if (file.format === 'docx') {
+        return await docxService.extractTextFromDocx(file.uri);
+      }
+
+      if (file.format === 'pdf') {
+        const result = await pdfService.extractTextFromPdf(file.uri);
+        if (result.isScanned) {
+          throw new Error('Scanned PDF detected. This document contains scanned images without selectable text. An OCR engine or backend service is required to transcribe images.');
+        }
+        return result.text;
+      }
+
+      if (file.format === 'xlsx') {
+        const csvResult = await xlsxService.convertXlsxToCsv(file.uri);
+        return csvResult.preview;
+      }
+
+      throw new Error(`Text extraction not supported for format: ${file.format}`);
+    } catch (err: any) {
+      console.warn('extractTextForTranslation error:', err);
+      throw err;
+    }
   }
 
   /**
-   * Execute document conversion with progressive status updates
+   * Execute real document conversion with progressive status updates
    */
   public async convertDocument(
     file: SelectedFile,
@@ -153,13 +208,12 @@ class ConverterService {
       progress: 5,
       currentStepText: 'Validating document integrity & signatures...',
       createdAt: new Date().toISOString(),
-      canTranslate: true,
+      canTranslate: targetFormat === 'docx' || targetFormat === 'txt' || targetFormat === 'pdf',
     };
 
     onProgress({ ...job });
 
     // Step 1: Validation
-    await this.delay(500);
     const validation = this.validateFile(file, targetFormat);
     if (!validation.isValid) {
       job.status = 'failed';
@@ -172,122 +226,289 @@ class ConverterService {
     // Step 2: Try Remote Backend API if enabled
     if (API_CONFIG.useRemoteBackend) {
       job.status = 'uploading';
-      job.progress = 30;
+      job.progress = 25;
       job.currentStepText = 'Dispatching file to Vertex Cloud Enterprise Engine...';
       onProgress({ ...job });
 
-      const remoteResp = await apiClient.convertDocument({
-        fileName: file.name,
-        fileUri: file.uri,
-        fileSize: file.size,
-        sourceFormat: file.format,
-        targetFormat: targetFormat,
-      });
+      try {
+        const remoteResp = await apiClient.convertDocument({
+          fileName: file.name,
+          fileUri: file.uri,
+          fileSize: file.size,
+          sourceFormat: file.format,
+          targetFormat: targetFormat,
+        });
 
-      if (remoteResp && remoteResp.status === 'completed') {
-        job.status = 'completed';
-        job.progress = 100;
-        job.currentStepText = 'Remote conversion completed successfully!';
-        job.resultUri = remoteResp.resultUri;
-        job.resultFileName = remoteResp.resultFileName;
-        job.resultSize = remoteResp.resultSize;
-        job.resultSizeFormatted = formatBytes(remoteResp.resultSize);
-        job.completedAt = new Date().toISOString();
-        historyService.addFromConversion(job);
-        onProgress({ ...job });
-        return job;
+        if (remoteResp && remoteResp.status === 'completed') {
+          job.status = 'completed';
+          job.progress = 100;
+          job.currentStepText = 'Remote conversion completed successfully!';
+          job.resultUri = remoteResp.resultUri;
+          job.resultFileName = remoteResp.resultFileName;
+          job.resultSize = remoteResp.resultSize;
+          job.resultSizeFormatted = formatBytes(remoteResp.resultSize);
+          job.completedAt = new Date().toISOString();
+          historyService.addFromConversion(job);
+          onProgress({ ...job });
+          return job;
+        }
+      } catch (backendErr) {
+        console.warn('Backend unavailable, falling back to on-device engine:', backendErr);
       }
     }
 
-    // Step 3: Extraction & Layout Analysis (Client-side engine)
+    // Step 3: Execute On-Device Conversion Engine
     job.status = 'processing';
     job.progress = 30;
-    job.currentStepText = 'Extracting typography, tables & visual layouts...';
+    job.currentStepText = `Initializing ${file.format.toUpperCase()} to ${targetFormat.toUpperCase()} engine...`;
     onProgress({ ...job });
-    await this.delay(700);
-
-    // Step 4: Format Conversion Engine
-    job.progress = 65;
-    job.currentStepText = `Transforming document schema into ${targetFormat.toUpperCase()}...`;
-    onProgress({ ...job });
-    await this.delay(800);
-
-    // Step 5: Finalizing & Writing file
-    job.progress = 90;
-    job.currentStepText = 'Optimizing and packaging target file...';
-    onProgress({ ...job });
-
-    let resultUri = file.uri;
-    let resultSize = Math.max(
-      1024 * 100,
-      Math.round(file.size * (targetFormat === 'txt' ? 0.2 : 0.85))
-    );
 
     try {
-      const outputDir = (FileSystem as any).cacheDirectory || '';
-      const targetFilePath = `${outputDir}${resultFileName}`;
+      let finalUri = '';
+      let finalSize = 0;
+      let finalFileName = resultFileName;
 
-      // Create a representative local file on disk
-      const contentSummary =
-        `VERTEX DOCS CONVERTED DOCUMENT\n` +
-        `----------------------------------------\n` +
-        `Original: ${file.name}\n` +
-        `Source Format: ${file.format.toUpperCase()}\n` +
-        `Target Format: ${targetFormat.toUpperCase()}\n` +
-        `Converted: ${new Date().toLocaleString()}\n` +
-        `Engine: JM Vertex Technologies High-Fidelity Converter\n` +
-        `Status: Verified Intact (Styles, Margins & Typography Preserved)\n` +
-        `----------------------------------------\n\n` +
-        `This file has been successfully transformed into ${targetFormat.toUpperCase()} and is ready for workflow translation or export.`;
+      // --- ROUTE 1: PDF to DOCX ---
+      if (file.format === 'pdf' && targetFormat === 'docx') {
+        job.progress = 40;
+        job.currentStepText = 'Extracting PDF streams and selectable text layers...';
+        onProgress({ ...job });
 
-      if (FileSystem.writeAsStringAsync && outputDir) {
-        await FileSystem.writeAsStringAsync(targetFilePath, contentSummary, {
-          encoding: 'utf8' as any,
+        const pdfExtracted = await pdfService.extractTextFromPdf(file.uri);
+        if (pdfExtracted.isScanned) {
+          throw new Error('Scanned PDF detected. This document consists of image-based pages. An OCR engine or cloud backend is required to transcribe images to Word text.');
+        }
+
+        job.progress = 70;
+        job.currentStepText = 'Building OpenXML Word (.docx) document structure...';
+        onProgress({ ...job });
+
+        const paragraphs = pdfExtracted.text.split(/\r?\n\r?\n/).filter(Boolean);
+        const docxResult = await docxService.generateDocx(paragraphs, {
+          title: baseName,
+          fileName: resultFileName,
         });
-        resultUri = targetFilePath;
+
+        // Validate created DOCX
+        const validationResult = await docxService.validateDocx(docxResult.uri);
+        if (!validationResult.isValid || validationResult.size === 0) {
+          throw new Error('DOCX generation validation failed: output file is empty or corrupted.');
+        }
+
+        finalUri = docxResult.uri;
+        finalSize = docxResult.size;
+        finalFileName = docxResult.fileName;
       }
-    } catch (e) {
-      console.log('Local file write fallback, using cached uri:', e);
+
+      // --- ROUTE 2: PDF to TXT ---
+      else if (file.format === 'pdf' && targetFormat === 'txt') {
+        job.progress = 50;
+        job.currentStepText = 'Parsing PDF text streams...';
+        onProgress({ ...job });
+
+        const pdfExtracted = await pdfService.extractTextFromPdf(file.uri);
+        if (pdfExtracted.isScanned) {
+          throw new Error('Scanned PDF detected: no selectable text found. OCR is required.');
+        }
+
+        const outDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
+        const targetPath = `${outDir}${resultFileName}`;
+        await FileSystem.writeAsStringAsync(targetPath, pdfExtracted.text, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+
+        const fileInfo = await FileSystem.getInfoAsync(targetPath);
+        finalUri = targetPath;
+        finalSize = fileInfo.exists && 'size' in fileInfo ? fileInfo.size : pdfExtracted.text.length;
+      }
+
+      // --- ROUTE 3: DOCX to PDF ---
+      else if (file.format === 'docx' && targetFormat === 'pdf') {
+        job.progress = 45;
+        job.currentStepText = 'Reading Word document paragraphs and styles...';
+        onProgress({ ...job });
+
+        const text = await docxService.extractTextFromDocx(file.uri);
+
+        job.progress = 75;
+        job.currentStepText = 'Typesetting paginated PDF layout with margins...';
+        onProgress({ ...job });
+
+        const pdfResult = await pdfService.createPdfFromText(text, {
+          title: baseName,
+          fileName: resultFileName,
+        });
+
+        finalUri = pdfResult.uri;
+        finalSize = pdfResult.size;
+        finalFileName = pdfResult.fileName;
+      }
+
+      // --- ROUTE 4: DOCX to TXT ---
+      else if (file.format === 'docx' && targetFormat === 'txt') {
+        job.progress = 50;
+        job.currentStepText = 'Extracting clean text from Word archive...';
+        onProgress({ ...job });
+
+        const text = await docxService.extractTextFromDocx(file.uri);
+        const outDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
+        const targetPath = `${outDir}${resultFileName}`;
+
+        await FileSystem.writeAsStringAsync(targetPath, text, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+
+        const fileInfo = await FileSystem.getInfoAsync(targetPath);
+        finalUri = targetPath;
+        finalSize = fileInfo.exists && 'size' in fileInfo ? fileInfo.size : text.length;
+      }
+
+      // --- ROUTE 5: TXT to DOCX ---
+      else if (file.format === 'txt' && targetFormat === 'docx') {
+        job.progress = 50;
+        job.currentStepText = 'Packaging plain text into OpenXML Word format...';
+        onProgress({ ...job });
+
+        const content = await FileSystem.readAsStringAsync(file.uri, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        const paragraphs = content.split(/\r?\n\r?\n/).filter(Boolean);
+
+        const docxResult = await docxService.generateDocx(paragraphs, {
+          title: baseName,
+          fileName: resultFileName,
+        });
+
+        finalUri = docxResult.uri;
+        finalSize = docxResult.size;
+        finalFileName = docxResult.fileName;
+      }
+
+      // --- ROUTE 6: TXT to PDF ---
+      else if (file.format === 'txt' && targetFormat === 'pdf') {
+        job.progress = 50;
+        job.currentStepText = 'Typesetting plain text into PDF pages...';
+        onProgress({ ...job });
+
+        const content = await FileSystem.readAsStringAsync(file.uri, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+
+        const pdfResult = await pdfService.createPdfFromText(content, {
+          title: baseName,
+          fileName: resultFileName,
+        });
+
+        finalUri = pdfResult.uri;
+        finalSize = pdfResult.size;
+        finalFileName = pdfResult.fileName;
+      }
+
+      // --- ROUTE 7: XLSX to CSV ---
+      else if (file.format === 'xlsx' && targetFormat === 'csv') {
+        job.progress = 50;
+        job.currentStepText = 'Parsing Excel worksheets and shared string table...';
+        onProgress({ ...job });
+
+        const csvResult = await xlsxService.convertXlsxToCsv(file.uri, resultFileName);
+        finalUri = csvResult.uri;
+        finalSize = csvResult.size;
+        finalFileName = csvResult.fileName;
+      }
+
+      // --- ROUTE 8: Images (JPG/PNG) to PDF ---
+      else if ((file.format === 'jpg' || file.format === 'png') && targetFormat === 'pdf') {
+        job.progress = 50;
+        job.currentStepText = 'Embedding high-resolution image into PDF container...';
+        onProgress({ ...job });
+
+        const pdfResult = await pdfService.imagesToPdf([file.uri], resultFileName);
+        finalUri = pdfResult.uri;
+        finalSize = pdfResult.size;
+        finalFileName = pdfResult.fileName;
+      }
+
+      // --- ROUTE 9: Image Format Transcoding (JPG <-> PNG <-> WebP) ---
+      else if (
+        (file.format === 'jpg' || file.format === 'png') &&
+        (targetFormat === 'jpg' || targetFormat === 'png' || targetFormat === 'webp')
+      ) {
+        job.progress = 50;
+        job.currentStepText = `Re-encoding image raster into ${targetFormat.toUpperCase()} format...`;
+        onProgress({ ...job });
+
+        const imgResult = await imageService.convertImage(
+          file.uri,
+          targetFormat as any,
+          0.9,
+          resultFileName
+        );
+
+        finalUri = imgResult.uri;
+        finalSize = imgResult.size;
+        finalFileName = imgResult.fileName;
+      }
+
+      // --- ROUTE 10: PPTX conversions requiring cloud rendering ---
+      else if (file.format === 'pptx') {
+        throw new Error(
+          'PowerPoint presentation slide rendering requires the Vertex Cloud Presentation Engine. Please verify server connectivity or extract outline text.'
+        );
+      }
+
+      else {
+        throw new Error(`Conversion engine for ${file.format.toUpperCase()} to ${targetFormat.toUpperCase()} is not available.`);
+      }
+
+      // Step 4: Validate output file existence and non-zero size
+      const checkInfo = await FileSystem.getInfoAsync(finalUri);
+      if (!checkInfo.exists || ('size' in checkInfo && checkInfo.size === 0)) {
+        throw new Error('Converted output file was not successfully generated on disk.');
+      }
+
+      job.status = 'completed';
+      job.progress = 100;
+      job.currentStepText = 'Conversion completed successfully!';
+      job.resultUri = finalUri;
+      job.resultFileName = finalFileName;
+      job.resultSize = finalSize;
+      job.resultSizeFormatted = formatBytes(finalSize);
+      job.completedAt = new Date().toISOString();
+
+      historyService.addFromConversion(job);
+      onProgress({ ...job });
+      return job;
+    } catch (conversionErr: any) {
+      console.warn('Conversion failed:', conversionErr);
+      job.status = 'failed';
+      job.errorMessage = conversionErr?.message || 'Document conversion failed.';
+      job.currentStepText = 'Conversion error occurred.';
+      onProgress({ ...job });
+      historyService.addFromConversion(job);
+      return job;
     }
-
-    await this.delay(400);
-
-    // Step 6: Completed
-    job.status = 'completed';
-    job.progress = 100;
-    job.currentStepText = 'Conversion completed successfully!';
-    job.resultUri = resultUri;
-    job.resultFileName = resultFileName;
-    job.resultSize = resultSize;
-    job.resultSizeFormatted = formatBytes(resultSize);
-    job.completedAt = new Date().toISOString();
-
-    onProgress({ ...job });
-
-    // Record into history
-    historyService.addFromConversion(job);
-
-    return job;
   }
 
   /**
-   * Share converted document via system share dialog
+   * Share converted document
    */
-  public async shareDocument(job: ConversionJob): Promise<boolean> {
+  public async shareDocument(
+    target: ConversionJob | string,
+    title?: string
+  ): Promise<boolean> {
     try {
       const isAvailable = await Sharing.isAvailableAsync();
-      if (!isAvailable) {
-        return false;
-      }
+      if (!isAvailable) return false;
 
-      const uriToShare = job.resultUri || job.fileUri;
-      await Sharing.shareAsync(uriToShare, {
-        mimeType: 'application/octet-stream',
-        dialogTitle: `Share ${job.resultFileName || job.fileName}`,
+      const uri = typeof target === 'string' ? target : target.resultUri;
+      if (!uri) return false;
+
+      await Sharing.shareAsync(uri, {
+        dialogTitle: title || (typeof target !== 'string' ? target.resultFileName : undefined) || 'Share Converted Document',
       });
       return true;
-    } catch (error) {
-      console.warn('Sharing error:', error);
+    } catch (e) {
+      console.warn('shareDocument error:', e);
       return false;
     }
   }
