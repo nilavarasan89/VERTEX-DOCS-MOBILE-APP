@@ -563,6 +563,41 @@ export const DocumentConverterScreen: React.FC<DocumentConverterScreenProps> = (
               <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
             </TouchableOpacity>
 
+            {/* Quick Links to Image & PDF Specialized Studios */}
+            {onNavigateScreen && (
+              <View style={styles.studioQuickRow}>
+                <TouchableOpacity
+                  style={styles.studioQuickCard}
+                  onPress={() => onNavigateScreen('image_to_pdf')}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.studioQuickIconBox, { backgroundColor: '#EFF6FF' }]}>
+                    <Ionicons name="images" size={18} color={COLORS.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.studioQuickTitle}>Image to PDF</Text>
+                    <Text style={styles.studioQuickDesc}>Multi-image reorder & PDF creation</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={COLORS.muted} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.studioQuickCard}
+                  onPress={() => onNavigateScreen('pdf_to_image')}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.studioQuickIconBox, { backgroundColor: '#FEF2F2' }]}>
+                    <Ionicons name="image" size={18} color="#DC2626" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.studioQuickTitle}>PDF to Image</Text>
+                    <Text style={styles.studioQuickDesc}>Extract high-res PNG/JPG & ZIP</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={COLORS.muted} />
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Step 1: File Selection */}
             <View style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
@@ -1342,7 +1377,7 @@ const styles = StyleSheet.create({
     borderColor: '#BFDBFE',
   },
   topTabBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: COLORS.textSecondary,
   },
@@ -1362,8 +1397,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#EFF6FF',
     borderRadius: RADIUS.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     marginBottom: SPACING.sm,
     borderWidth: 1,
     borderColor: '#BFDBFE',
@@ -1371,9 +1406,43 @@ const styles = StyleSheet.create({
   },
   capabilityPillText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: '600',
     color: COLORS.primary,
+  },
+  studioQuickRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: SPACING.md,
+  },
+  studioQuickCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    ...SHADOWS.subtle,
+  },
+  studioQuickIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  studioQuickTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: COLORS.navy,
+  },
+  studioQuickDesc: {
+    fontSize: 11.5,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
   sectionCard: {
     backgroundColor: COLORS.card,
@@ -1390,9 +1459,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   stepCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1400,49 +1469,49 @@ const styles = StyleSheet.create({
   },
   stepCircleText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
   },
   sectionHeaderTitleContainer: {
     flex: 1,
   },
   sectionHeaderTitle: {
-    fontSize: 15,
+    fontSize: 16.5,
     fontWeight: '700',
     color: COLORS.textPrimary,
   },
   sectionHeaderSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: COLORS.textSecondary,
-    marginTop: 1,
+    marginTop: 2,
   },
   uploadDottedBox: {
     borderWidth: 2,
     borderStyle: 'dashed',
     borderColor: COLORS.primary,
     borderRadius: RADIUS.md,
-    paddingVertical: SPACING.lg,
+    paddingVertical: SPACING.xl,
     paddingHorizontal: SPACING.md,
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
   },
   uploadIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SPACING.sm,
   },
   uploadDottedTitle: {
-    fontSize: 15,
+    fontSize: 16.5,
     fontWeight: '700',
     color: COLORS.primary,
     marginBottom: 4,
   },
   uploadDottedSubtitle: {
-    fontSize: 12,
+    fontSize: 13.5,
     color: COLORS.textSecondary,
     textAlign: 'center',
     marginBottom: SPACING.md,
@@ -1451,14 +1520,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderRadius: RADIUS.md,
     gap: 8,
   },
   browseButtonText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '700',
   },
   selectedFileBox: {
@@ -1466,23 +1535,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
     borderRadius: RADIUS.md,
-    padding: SPACING.sm,
+    padding: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   selectedFileIcon: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     borderRadius: RADIUS.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.sm,
+    marginRight: SPACING.md,
   },
   selectedFileInfo: {
     flex: 1,
   },
   selectedFileName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: COLORS.textPrimary,
   },
@@ -1492,7 +1561,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   selectedFileMeta: {
-    fontSize: 11,
+    fontSize: 13,
     color: COLORS.textSecondary,
     fontWeight: '500',
   },

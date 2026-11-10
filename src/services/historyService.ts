@@ -81,6 +81,41 @@ class HistoryService {
   public clearAll(): void {
     this.history = [];
   }
+
+  public clear(): void {
+    this.clearAll();
+  }
+
+  public addRecord(item: {
+    type?: HistoryItemType;
+    title: string;
+    sourceFormat?: string;
+    targetFormat?: string;
+    status?: 'completed' | 'failed';
+    fileSize?: number;
+    fileSizeFormatted?: string;
+    uri?: string;
+    meta?: any;
+  }): HistoryItem {
+    const record: HistoryItem = {
+      id: 'hist_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      type: item.type || 'conversion',
+      title: item.title,
+      subtitle: item.type === 'merge' ? 'Merged Document' : 'Compressed File',
+      sourceBadge: item.sourceFormat ? item.sourceFormat.toUpperCase() : 'DOC',
+      targetBadge: item.targetFormat ? item.targetFormat.toUpperCase() : 'PDF',
+      date: 'Just now',
+      timestamp: Date.now(),
+      status: item.status || 'completed',
+      fileSizeFormatted: item.fileSizeFormatted || '1.0 MB',
+      resultUri: item.uri,
+      resultFileName: item.title,
+      canTranslate: false,
+      meta: item.meta,
+    };
+    this.history.unshift(record);
+    return record;
+  }
 }
 
 export const historyService = new HistoryService();

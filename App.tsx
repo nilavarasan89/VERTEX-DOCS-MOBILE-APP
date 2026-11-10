@@ -14,9 +14,15 @@ import { LoginScreen } from './src/screens/LoginScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
+import { ConverterScreen } from './src/screens/ConverterScreen';
+import { CompressScreen } from './src/screens/CompressScreen';
+import { MergeScreen } from './src/screens/MergeScreen';
+import { AiScreen } from './src/screens/AiScreen';
 import { DocumentConverterScreen } from './src/screens/DocumentConverterScreen';
 import { DocumentTranslatorScreen } from './src/screens/DocumentTranslatorScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
+import { ImageToPdfScreen } from './src/screens/ImageToPdfScreen';
+import { PdfToImageScreen } from './src/screens/PdfToImageScreen';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('login');
@@ -85,9 +91,28 @@ export default function App() {
         );
       case 'converter':
         return (
-          <DocumentConverterScreen
+          <ConverterScreen
             onBack={handleBackToDashboard}
+            onNavigateScreen={handleDirectNavigate}
             onNavigateToTranslator={handleNavigateToTranslator}
+          />
+        );
+      case 'compress':
+        return (
+          <CompressScreen
+            onBack={handleBackToDashboard}
+          />
+        );
+      case 'merge':
+        return (
+          <MergeScreen
+            onBack={handleBackToDashboard}
+          />
+        );
+      case 'ai':
+        return (
+          <AiScreen
+            onBack={handleBackToDashboard}
             onNavigateScreen={handleDirectNavigate}
           />
         );
@@ -106,6 +131,20 @@ export default function App() {
           <HistoryScreen
             onBack={handleBackToDashboard}
             onNavigateToTranslator={handleNavigateToTranslator}
+            onNavigateScreen={handleDirectNavigate}
+          />
+        );
+      case 'image_to_pdf':
+        return (
+          <ImageToPdfScreen
+            onBack={handleBackToDashboard}
+            onNavigateScreen={handleDirectNavigate}
+          />
+        );
+      case 'pdf_to_image':
+        return (
+          <PdfToImageScreen
+            onBack={handleBackToDashboard}
             onNavigateScreen={handleDirectNavigate}
           />
         );

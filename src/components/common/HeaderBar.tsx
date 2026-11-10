@@ -42,7 +42,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             accessibilityLabel="Go back"
             accessibilityRole="button"
           >
-            <Ionicons name="arrow-back" size={20} color={COLORS.navy} />
+            <Ionicons name="arrow-back" size={22} color={COLORS.navy} />
           </TouchableOpacity>
         )}
 
@@ -64,7 +64,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           onPress={rightAction.onPress}
           activeOpacity={0.7}
         >
-          <Ionicons name={rightAction.icon} size={20} color={COLORS.navy} />
+          <Ionicons name={rightAction.icon} size={22} color={COLORS.navy} />
         </TouchableOpacity>
       )}
     </View>
@@ -73,7 +73,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    height: 56,
+    height: 62,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -88,8 +88,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   backButton: {
-    width: 36,
-    height: 36,
+    width: 42,
+    height: 42,
     borderRadius: RADIUS.md,
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
@@ -100,18 +100,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.navy,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: COLORS.textSecondary,
-    marginTop: 1,
+    marginTop: 2,
   },
   rightButton: {
-    width: 36,
-    height: 36,
+    width: 42,
+    height: 42,
     borderRadius: RADIUS.md,
     backgroundColor: '#F1F5F9',
     alignItems: 'center',

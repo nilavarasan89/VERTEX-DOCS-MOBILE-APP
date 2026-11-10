@@ -87,29 +87,61 @@ class TranslatorService {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 9000);
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 14) VertexDocs/1.0',
-      },
-      signal: controller.signal,
-    });
+    // 1. Try Google Neural Engine (GTX)
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 14) VertexDocs/1.0',
+        },
+        signal: controller.signal,
+      });
 
-    clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      throw new Error(`Google Translation Engine returned HTTP ${response.status}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data) && Array.isArray(data[0])) {
+          const translated = data[0]
+            .map((item: any) => (item && item[0] ? item[0] : ''))
+            .join('');
+          if (translated && translated.trim().length > 0) {
+            return decodeHtmlEntities(translated);
+          }
+        }
+      }
+    } catch (gtxErr) {
+      console.warn('Google GTX primary attempt failed, trying alternate neural gateway:', gtxErr);
     }
 
-    const data = await response.json();
-    if (Array.isArray(data) && Array.isArray(data[0])) {
-      const translated = data[0]
-        .map((item: any) => (item && item[0] ? item[0] : ''))
-        .join('');
-      if (translated && translated.trim().length > 0) {
-        return decodeHtmlEntities(translated);
+    // 2. Try Alternate Google Client Endpoint (dict-chrome-ex)
+    try {
+      const altUrl = `https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=${sl}&tl=${tl}&q=${encoded}`;
+      const altController = new AbortController();
+      const altTimeout = setTimeout(() => altController.abort(), 9000);
+      const altRes = await fetch(altUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+        signal: altController.signal,
+      });
+      clearTimeout(altTimeout);
+
+      if (altRes.ok) {
+        const altData = await altRes.json();
+        if (Array.isArray(altData)) {
+          if (Array.isArray(altData[0]) && typeof altData[0][0] === 'string') {
+            return decodeHtmlEntities(altData[0][0]);
+          } else if (typeof altData[0] === 'string') {
+            return decodeHtmlEntities(altData[0]);
+          }
+        }
       }
+    } catch (altErr) {
+      console.warn('Alternate Google gateway failed:', altErr);
     }
 
     throw new Error('Google Translation Engine returned unparseable translation payload');

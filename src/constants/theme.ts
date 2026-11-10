@@ -55,6 +55,7 @@ export const SPACING = {
 };
 
 export const RADIUS = {
+  xs: 4,
   sm: 6,
   md: 10,
   lg: 14,
@@ -63,6 +64,27 @@ export const RADIUS = {
 };
 
 export const SHADOWS = {
+  sm: {
+    shadowColor: '#0B1533',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  md: {
+    shadowColor: '#0B1533',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  lg: {
+    shadowColor: '#0B1533',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
+  },
   subtle: {
     shadowColor: '#0B1533',
     shadowOffset: { width: 0, height: 1 },

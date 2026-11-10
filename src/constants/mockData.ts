@@ -66,6 +66,24 @@ export const MOCK_DOCUMENTS: DocumentItem[] = [
 
 export const MOCK_QUICK_ACTIONS: QuickActionItem[] = [
   {
+    id: 'action-image-to-pdf',
+    title: 'Image to PDF',
+    description: 'Combine multiple images into one PDF',
+    icon: 'images-outline',
+    badge: 'New',
+    route: 'image_to_pdf',
+    screenTarget: 'image_to_pdf',
+  },
+  {
+    id: 'action-pdf-to-image',
+    title: 'PDF to Image',
+    description: 'Extract high quality images from PDF pages',
+    icon: 'image-outline',
+    badge: 'New',
+    route: 'pdf_to_image',
+    screenTarget: 'pdf_to_image',
+  },
+  {
     id: 'action-converter',
     title: 'Document Converter',
     description: 'Convert PDF, Word, PPT & Images in 11+ formats',

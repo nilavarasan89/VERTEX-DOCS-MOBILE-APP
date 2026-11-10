@@ -489,6 +489,42 @@ export class PdfService {
   }
 
   /**
+   * Optimizes and compresses a PDF document using object stream compaction.
+   */
+  public async compressPdf(
+    uri: string,
+    outputFileName?: string
+  ): Promise<PdfOperationResult> {
+    const base64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    const doc = await PDFDocument.load(base64, { ignoreEncryption: true });
+    const totalPages = doc.getPageCount();
+
+    // Save with useObjectStreams: true to strip redundant object tables and compress streams
+    const base64Data = await doc.saveAsBase64({ useObjectStreams: true });
+
+    const outputDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
+    const safeFileName = outputFileName || `Compressed_${Date.now()}.pdf`;
+    const targetPath = `${outputDir}${safeFileName}`;
+
+    await FileSystem.writeAsStringAsync(targetPath, base64Data, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    const fileInfo = await FileSystem.getInfoAsync(targetPath);
+    const size = fileInfo.exists && 'size' in fileInfo ? fileInfo.size : base64Data.length * 0.75;
+
+    return {
+      uri: targetPath,
+      size,
+      pageCount: totalPages,
+      fileName: safeFileName,
+    };
+  }
+
+  /**
    * Retrieves page count of a PDF file
    */
   public async getPdfPageCount(uri: string): Promise<number> {

@@ -13,18 +13,30 @@ export type ScreenType =
   | 'forgot_password'
   | 'dashboard'
   | 'converter'
+  | 'compress'
+  | 'merge'
+  | 'ai'
   | 'translator'
-  | 'history';
+  | 'history'
+  | 'image_to_pdf'
+  | 'pdf_to_image';
 
 export type DashboardTab =
   | 'home'
+  | 'recent'
+  | 'settings'
   | 'files'
   | 'converter'
+  | 'compress'
+  | 'merge'
+  | 'ai'
   | 'translator'
   | 'history'
   | 'pdf_studio'
   | 'language_bridge'
-  | 'profile';
+  | 'profile'
+  | 'image_to_pdf'
+  | 'pdf_to_image';
 
 export interface UserProfile {
   name: string;
@@ -47,6 +59,7 @@ export interface DocumentItem {
   sourceLanguage?: string;
   targetLanguage?: string;
   isFavorite?: boolean;
+  resultUri?: string;
 }
 
 export interface QuickActionItem {

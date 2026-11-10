@@ -10,7 +10,10 @@ import JSZip from 'jszip';
 import * as FileSystem from 'expo-file-system/legacy';
 
 function escapeXml(unsafe: string): string {
+  if (!unsafe) return '';
   return unsafe
+    // Strip XML 1.0 illegal control characters that crash Word/Docs parsers
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -24,17 +27,48 @@ const CONTENT_TYPES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
+  <Override PartName="/word/fontTable.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
 </Types>`;
 
 const RELS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
 </Relationships>`;
 
 const DOCUMENT_RELS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable" Target="fontTable.xml"/>
 </Relationships>`;
+
+const SETTINGS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:zoom w:percent="100"/>
+  <w:defaultTabStop w:val="720"/>
+  <w:characterSpacingControl w:val="doNotCompress"/>
+</w:settings>`;
+
+const FONT_TABLE_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:fonts xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:font w:name="Calibri">
+    <w:panose1 w:val="020F0502020204030204"/>
+    <w:charset w:val="00"/>
+    <w:family w:val="swiss"/>
+    <w:pitch w:val="variable"/>
+  </w:font>
+  <w:font w:name="Times New Roman">
+    <w:panose1 w:val="02020603050405020304"/>
+    <w:charset w:val="00"/>
+    <w:family w:val="roman"/>
+    <w:pitch w:val="variable"/>
+  </w:font>
+</w:fonts>`;
 
 const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
@@ -53,8 +87,15 @@ const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
       </w:pPr>
     </w:pPrDefault>
   </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+    <w:qFormat/>
+  </w:style>
   <w:style w:type="paragraph" w:styleId="Heading1">
     <w:name w:val="heading 1"/>
+    <w:basedOn w:val="Normal"/>
+    <w:next w:val="Normal"/>
+    <w:qFormat/>
     <w:rPr>
       <w:b/>
       <w:color w:val="1E40AF"/>
@@ -64,6 +105,9 @@ const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   </w:style>
   <w:style w:type="paragraph" w:styleId="Heading2">
     <w:name w:val="heading 2"/>
+    <w:basedOn w:val="Normal"/>
+    <w:next w:val="Normal"/>
+    <w:qFormat/>
     <w:rPr>
       <w:b/>
       <w:color w:val="2563EB"/>
@@ -72,6 +116,44 @@ const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     </w:rPr>
   </w:style>
 </w:styles>`;
+
+function buildCorePropsXml(title: string): string {
+  const now = new Date().toISOString();
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
+                   xmlns:dc="http://purl.org/dc/elements/1.1/"
+                   xmlns:dcterms="http://purl.org/dc/terms/"
+                   xmlns:dcmitype="http://purl.org/dc/dcmitype/"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>${escapeXml(title)}</dc:title>
+  <dc:creator>Vertex Docs Mobile</dc:creator>
+  <cp:lastModifiedBy>Vertex Docs Mobile</cp:lastModifiedBy>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified>
+</cp:coreProperties>`;
+}
+
+function buildAppPropsXml(paragraphCount: number): string {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
+            xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Template>Normal.dotm</Template>
+  <TotalTime>1</TotalTime>
+  <Pages>1</Pages>
+  <Words>0</Words>
+  <Characters>0</Characters>
+  <Application>Vertex Docs Mobile</Application>
+  <DocSecurity>0</DocSecurity>
+  <Lines>1</Lines>
+  <Paragraphs>${paragraphCount}</Paragraphs>
+  <ScaleCrop>false</ScaleCrop>
+  <Company>JM Vertex Technologies</Company>
+  <LinksUpToDate>false</LinksUpToDate>
+  <SharedDoc>false</SharedDoc>
+  <HyperlinksChanged>false</HyperlinksChanged>
+  <AppVersion>16.0000</AppVersion>
+</Properties>`;
+}
 
 export class DocxService {
   /**
@@ -85,8 +167,12 @@ export class DocxService {
 
     zip.file('[Content_Types].xml', CONTENT_TYPES_XML);
     zip.file('_rels/.rels', RELS_XML);
+    zip.file('docProps/core.xml', buildCorePropsXml(options?.title || 'Vertex Document'));
+    zip.file('docProps/app.xml', buildAppPropsXml(paragraphs.length));
     zip.file('word/_rels/document.xml.rels', DOCUMENT_RELS_XML);
     zip.file('word/styles.xml', STYLES_XML);
+    zip.file('word/settings.xml', SETTINGS_XML);
+    zip.file('word/fontTable.xml', FONT_TABLE_XML);
 
     let docBody = '';
 

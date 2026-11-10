@@ -3,7 +3,7 @@
  * Company: JM Vertex Technologies
  */
 
-export type HistoryItemType = 'conversion' | 'translation';
+export type HistoryItemType = 'conversion' | 'translation' | 'merge' | 'compression';
 
 export interface HistoryItem {
   id: string;
